@@ -395,6 +395,7 @@ impl Client {
                 self.decoding_options(),
                 self.config.performance.ignore_clock_skew,
                 self.config.performance.single_threaded_executor,
+                self.config.connect_timeout,
             )));
             Ok(session)
         }
@@ -485,6 +486,7 @@ impl Client {
                 self.decoding_options(),
                 self.config.performance.ignore_clock_skew,
                 self.config.performance.single_threaded_executor,
+                self.config.connect_timeout,
             );
             session.connect()?;
             let result = session.get_endpoints()?;

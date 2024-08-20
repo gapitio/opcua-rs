@@ -199,6 +199,8 @@ pub struct ClientConfig {
     pub session_retry_interval: u32,
     /// Session timeout period in milliseconds
     pub session_timeout: u32,
+    /// Connection timeout period in milliseconds
+    pub connect_timeout: u32,
     /// Client performance settings
     pub performance: Performance,
     /// Session name
@@ -332,6 +334,7 @@ impl ClientConfig {
             session_retry_limit: SessionRetryPolicy::DEFAULT_RETRY_LIMIT as i32,
             session_retry_interval: SessionRetryPolicy::DEFAULT_RETRY_INTERVAL_MS,
             session_timeout: 0,
+            connect_timeout: 0,
             decoding_options: DecodingOptions {
                 max_array_length: decoding_options.max_array_length,
                 max_string_length: decoding_options.max_string_length,

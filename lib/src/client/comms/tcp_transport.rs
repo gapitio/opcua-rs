@@ -262,6 +262,8 @@ pub(crate) struct TcpTransport {
     connection_state: ConnectionStateMgr,
     /// Message queue for requests / responses
     message_queue: Arc<RwLock<MessageQueue>>,
+    /// Connection timeout in milliseconds
+    connect_timeout: u32,
     /// Tokio runtime
     runtime: Arc<Mutex<tokio::runtime::Runtime>>,
 }
@@ -276,11 +278,13 @@ impl Transport for TcpTransport {}
 
 impl TcpTransport {
     const WAIT_POLLING_TIMEOUT: u64 = 100;
+    const DEFAULT_CONNECT_TIMEOUT: u32 = 10 * 1000;
 
     /// Create a new TCP transport layer for the session
     pub fn new(
         secure_channel: Arc<RwLock<SecureChannel>>,
         session_state: Arc<RwLock<SessionState>>,
+        connect_timeout: u32,
         single_threaded_executor: bool,
     ) -> TcpTransport {
         let connection_state = {
@@ -308,6 +312,7 @@ impl TcpTransport {
             secure_channel,
             connection_state,
             message_queue,
+            connect_timeout,
             runtime: Arc::new(Mutex::new(runtime)),
         }
     }
@@ -362,6 +367,7 @@ impl TcpTransport {
             session_state.clone(),
             secure_channel,
             message_queue,
+            self.connect_timeout,
         );
         let runtime = self.runtime.clone();
         thread::spawn(move || {
@@ -418,14 +424,29 @@ impl TcpTransport {
         session_state: Arc<RwLock<SessionState>>,
         secure_channel: Arc<RwLock<SecureChannel>>,
         message_queue: Arc<RwLock<MessageQueue>>,
+        connect_timeout: u32,
     ) -> Result<(ReadState, WriteState), StatusCode> {
+        let connect_timeout = match connect_timeout {
+            0 => Self::DEFAULT_CONNECT_TIMEOUT,
+            _ => connect_timeout,
+        };
         debug!(
             "Creating a connection task to connect to {} with url {}",
             addr, endpoint_url
         );
 
         connection_state.set_state(ConnectionState::Connecting);
-        let socket = TcpStream::connect(&addr).await.map_err(|err| {
+
+        let socket = tokio::time::timeout(
+            tokio::time::Duration::from_millis(connect_timeout.into()),
+            tokio::net::TcpStream::connect(&addr),
+        )
+        .await
+        .map_err(|err| {
+            error!("Timed out trying to connect to host {}, {:?}", addr, err);
+            StatusCode::BadTimeout
+        })?
+        .map_err(|err| {
             error!("Could not connect to host {}, {:?}", addr, err);
             StatusCode::BadCommunicationError
         })?;

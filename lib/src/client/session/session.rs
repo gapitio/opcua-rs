@@ -154,6 +154,7 @@ impl Session {
         decoding_options: DecodingOptions,
         ignore_clock_skew: bool,
         single_threaded_executor: bool,
+        connect_timeout: u32,
     ) -> Session
     where
         T: Into<UAString>,
@@ -177,6 +178,7 @@ impl Session {
         let transport = TcpTransport::new(
             secure_channel.clone(),
             session_state.clone(),
+            connect_timeout,
             single_threaded_executor,
         );
 
